@@ -1,0 +1,186 @@
+---
+title: "Group_Report_Polished"
+author: "Wasim Khan - Shrey Kothari - Ali Syed - Usman Fawaz"
+date: "2025-11-10"
+output: html_document
+---
+```{r}
+#load packages
+
+library(psych)
+library(ggplot2)
+library(tidyverse)
+```
+
+```{r}
+data <- read.csv("/Users/wasimkhan/Downloads/cox-violent-parsed.csv",
+                 header = TRUE, stringsAsFactors = FALSE)
+
+```
+
+```{r}
+set.seed(862336065)
+n <- nrow(data)
+train_index <- sample(1:n, size = 0.7 * n)
+train_data <- data[train_index, ]
+test_data  <- data[-train_index, ]
+```
+
+#Data Description
+The csv file is the COMPAS data set that looks at the probability of a criminal committing another crime in the future. It comes from https://www.kaggle.com/datasets/danofer/compass/data. After a 70/30 split using seed = student_id, the training set contains 12,821 observations and the test set contains 5,495.
+
+We have 52 variables in total.
+
+The response variable is "is_recid" while the candidate predictors are race, sex, age, priors_count, c_charge_degree, decile_score, and juv_fel_count/juv_misd_count. 
+
+The is_recid variable is a boolean and tells us whether a person will commit a crime in the future. 
+The race variable is type string, which tells us the race of the person.
+The sex variable is type string, which tells us the person's sex.
+The priors_count variable is type int, which tells us how many prior counts the person has.
+The juv_fel_count/juv_misd_count variable is type int, which tells us how many felonies/misdemeanors a person had as a juvenile.
+The decile_score variable is type int, which tells us perceived risk of recidivism.
+The c_charge_degree is type string, which tells us the charge degree of a person's crime.
+
+
+#Descriptive Statistics
+```{r}
+numericVariables <- c("is_recid", "age", "priors_count")
+categoricalVariables <- c("race", "sex")
+
+numericSummary <- data.frame(
+  Variable = numericVariables,
+  Mean = sapply(train_data[numericVariables], mean, na.rm = TRUE),
+  Median = sapply(train_data[numericVariables], median, na.rm = TRUE),
+  SD = sapply(train_data[numericVariables], sd, na.rm = TRUE),
+  Min = sapply(train_data[numericVariables], min, na.rm = TRUE),
+  Q1 = sapply(train_data[numericVariables], quantile, probs = 0.25, na.rm = TRUE),
+  Q3 = sapply(train_data[numericVariables], quantile, probs = 0.75, na.rm = TRUE),
+  Max = sapply(train_data[numericVariables], max, na.rm = TRUE)
+)
+
+numericSummary
+
+for (v in categoricalVariables) {
+  cat("\nVariable:", v, "\n")
+  tbl <- table(train_data[[v]])
+  pct <- prop.table(tbl) * 100
+  print(cbind(Frequency = tbl,
+              Percentage = round(pct, 1)))
+}
+```
+Interpretation:
+is_recid: About 41% of individuals reoffended, indicating most did not recidivate. age: The average age is 34, with most individuals in their 20s to 40s. priors_count: Most individuals have few or no prior offenses, but few have many. race: The dataset is mostly African American, 54%, and Caucasian 33%. sex: The sample is predominantly male, about 82%.
+
+Average age of individuals was 34, felony rate among prisoners was 8% with a slightly higher misdemeanor rate of 10% for juvenile crime. The average inmate had around 4 priors with an average of 4,520 days in jail.
+
+We can see that since the recidivism rate is 41%, and since we care about the days spent in and out of jail, many inmates spend more time in prison then they do outside before they re-offend, with an average of 4,030 days spent out of jail.
+
+Using descriptive statistics for our categorical variables, the largest race by percentage in prison was African Americans with a 54%, and Caucasians around 33%
+
+Males dominate the data set with 82% of inmates in this study.
+
+Using our cross tables we can also interpret recidivism rate being highest among African Americans, and lower among Caucasians. Among men recidivism rates are far higher compared to women who proportionately do not re-offend as high.
+
+```{r}
+data2 <- train_data[, c("race", "age", "sex", "priors_count", "is_recid", "juv_fel_count", "juv_misd_count", "c_charge_degree", "decile_score", "is_violent_recid")]
+
+#cross tables to compare
+t1 <- table(data2$race, data2$is_recid)
+t2 <- table(data2$sex, data2$is_recid)
+
+prop.table(t1) * 100
+prop.table(t2) * 100
+```
+
+
+
+#Visual Exploration
+```{r}
+par(mfrow = c(1,3))
+hist(train_data$age, main = "Age Distribution", xlab = "Age")
+hist(train_data$priors_count, main = "Priors Count Distribution", xlab = "Number of Priors")
+hist(train_data$is_recid, main = "Recidivism Indicator", xlab = "is_recid (0 = No, 1 = Yes)")
+```
+##### Age Distribution:
+
+Age is right skewed, with most individuals between 20 to 40 years old and a few older outliers past 80. This suggests the offender population is generally young.
+
+##### Priors Count Distribution:
+
+Priors count is heavily right skewed, most people have few or no prior offenses, while a small subset has many. These outliers indicate repeat offenders with extensive histories.
+
+##### Recidivism Indicator:
+
+The recidivism variable is binary, with roughly 40% to 50% reoffending.
+
+
+```{r}
+#Race
+ggplot(data2, aes(x="", fill=race)) +
+  geom_bar(width=1) +
+  coord_polar("y") +
+  labs(title="Race Breakdown") +
+  theme_void()
+```
+
+```{r}
+
+#Misdemeanor Count
+ggplot(data2, aes(x=juv_misd_count)) +
+  geom_histogram(binwidth=1, fill="orange", color="black") +
+  labs(title="Juvenile Felony Dist.", x="Score", y="Count") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(data2, aes(x=is_recid)) +
+  geom_bar(binwidth=1, fill="purple", color="black") +
+  labs(title="Recidivism Rate Overall", x="Score", y="Count") +
+  theme_minimal()
+```
+The age histogram skews right meaning the ages of offenders tends to be on the younger side.
+
+The decile score histogram does not tell us a lot other than scores skewing left but mostly following a median of around 3-6.
+
+Lastly most of the inmates have not done any misdemeanors as juveniles, but a small proportion have done 1 or more.
+
+If we look at the overall counts of inmates, more do not re-offend however the re-offense rate is still quite high, being over 7,500 which is around 41% of the inmates who re-offend.
+
+#Group Comparison and Synthesis
+
+By using the samples that we each derive, we are able to see the differences not being as vast as we may have imagined. Although we used different graphs, primarily one team member using a bar plot for recidivism count and another using pie charts, we are able to see that in large, a large amount of inmates tend to re-offense. Another example of this would be looking at decile rate and prior counts compared to recidivism, and this predictors show that the higher the the amount of counts and docil rate, the higher the likelihood of an inmate being back in prison, contributing to a positive correlation. Seeing that the results are relatively uniform across the four samples, we can say that this is due to the largeness of the dataset as well as the stability of the dataset, not having too many extreme outliers that contribute to the sample set.
+
+#Key Insights
+The visualizations reveal several key patterns: younger individuals tend to have higher recidivism rates, while older individuals rarely reoffend, suggesting a negative relationship between age and recidivism. The number of prior offenses shows a strong positive association with recidivism, indicating that repeat offenders are more likely to reoffend. Both age and priors_count are highly right-skewed, with noticeable outliers—particularly among those with many prior offenses. These findings suggest that transformations such as log-scaling priors_count or binning age into categories could help normalize distributions and improve model performance. Additionally, since the dataset is predominantly male and African-American, care should be taken to address potential bias when building predictive models.
+
+Another aspect that must be touched upon is the idea that how the dataset seems to take proportionately African American inmates into this study. Although practical, what could be another stage is isolate fully the races to this study. What can be predicted initially is the fact that race might be a large predictor over other predictors, unfairly biasing this data set to say that inmates overall are afflicted by re-offense, but rather a dominant statistic skews the data in a way where we cannot drive full insights of the population based off our sample. This was also initially tested by having isolated subsets for some visualizations and descriptive statistics
+
+#CHATGPT Integration
+Prompt 1: Suggest plots in R to examine the relationship between age and recidivism (is_recid) in my dataset.
+```{r}
+# Ensure is_recid is numeric 0/1
+data2$is_recid_num <- ifelse(data2$is_recid %in% c(1, "1", TRUE), 1, 0)
+
+# Plot age vs recidivism with logistic regression line
+library(ggplot2)
+
+ggplot(data2, aes(x = age, y = is_recid_num)) +
+  geom_jitter(height = 0.05, alpha = 0.3, color = "blue") +
+  geom_smooth(method = "glm", method.args = list(family = "binomial"), color = "red") +
+  theme_bw() +
+  labs(title = "Recidivism vs Age", y = "is_recid", x = "Age")
+```
+Result: This shows using a scatter plot with a mean line how likely age has to correlation of recidivism rate. To be honest it does not provide an insight as the line is far above the actual data points, showing it does not accurately capture the data. Potentially we could add some line distributions or smoothing to ensure more usability.
+
+
+Prompt 2: What transformations can I apply to right-skewed variables like priors_count to improve model interpretability?
+```{r}
+train_data$priors_count_sqrt <- sqrt(train_data$priors_count)
+head(train_data[, c("priors_count", "priors_count_sqrt")])
+
+# Optional: summary statistics
+summary(train_data$priors_count_sqrt)
+
+```
+
+Result: Takes the square root of each prior count column, like we said above we want to apply smoothing methods to ensure that this dataset is not unfairly biased by large amounts of noise or extreme large populations that affect the population when creating interpretations. By doing a square root transformation we can even out the overall understanding of how we interpret the prior count without having it sway our recidivism rate.

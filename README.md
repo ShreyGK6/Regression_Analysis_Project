@@ -40,6 +40,6 @@ address your research question.
 • Interpretation Reporting: Communicate your findings clearly in both a written
 report and an oral presentation.
 
-• AI Reflection Include brief documentation of how you used generative AI (when
+• AI Reflection: Include brief documentation of how you used generative AI (when
 applicable), how you evaluated its suggestions, and what you learned from
 supervising its output.

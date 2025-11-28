@@ -1,0 +1,77 @@
+---
+title: "Group_Report3_ModelBuilding"
+output: html_document
+date: "2025-11-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+data <- read.csv("G:/My Drive/2025 - 2026 Year (2nd Year)/Fall 2025/STAT170/cox-violent-parsed.csv")
+library(tidyverse)
+library(car)
+```
+
+### Representative Model
+
+```{r}
+set.seed(862384959)
+n <- nrow(data)
+train_index <- sample(1:n, size = 0.7 * n)
+train_data <- data[train_index, ]
+test_data  <- data[-train_index, ]
+
+variablesOfInterest <- c("is_recid", "race", "age", "priors_count", "sex", "decile_score", "juv_fel_count")
+df <- train_data[, variablesOfInterest]
+
+model4 <- lm(is_recid ~ race + age + I(age^2) + priors_count + I(priors_count^2) + juv_fel_count + decile_score + I(decile_score^2), data = train_data)
+summary(model4)
+```
+
+Our representative model includes curvature terms for age, priors_count, and decile_score in addition to race and juv_fel_count. The curvature terms for age, priors_count, and decile_score are all statistically significant, indicating important nonlinear effects on recidivism. Race coefficients are mostly not significant, suggesting if there is direct association after adjusting for criminal history. The adjusted R^2 of 0.1549 shows a decent explanation of variability.
+
+```{r}
+plot(model4, which = 2, main = "Q-Q Plot of Residuals")
+```
+
+The smoothed line deviates slightly from zero, suggesting non linearity.
+
+```{r}
+plot(model4, which = 1, main = "Residuals vs Fitted Plot")
+```
+
+Residuals follow the diagonal line closely in the center but deviate slightly in the tails. This is expected for binary outcomes.
+
+```{r}
+plot(model4, which = 3, main = "Scale-Location Plot")
+```
+
+The red line shows residual spread increasing slightly with fitted values, indicating there might be heteroscedasticity. This is also expected due to binary outcomes.
+
+### Comparison
+
+Member - Model Type - Adjusted R^2 - RMSE Test Output 
+
+Ali - Curvature only - 0.1549 - 0.5285 - Best predictive performance 
+
+Shrey - Interactions - 0.1587 - 0.5854 
+
+Wasim - Interactions - 0.1595 - 0.5431
+
+Usman - Curvature only - 0.4257 - 2.263
+
+### Group Discussion & Synthesis
+
+Across the group, everyone included the primary predictors of recidivism such as race, age, priors_count, and juvenile felony history. Some members experimented with curvature, while others added race based interaction terms instead. Curvature models tended to improve prediction more than interaction models. 
+
+Ali’s model had the lowest test RMSE at 0.5285, indicating the strongest performance, even though the adjusted R^2 was slightly lower than the rest. Shrey and Wasim achieved slightly higher adjusted R^2 values, however, but both models performed worse on the test set. 
+
+Interaction terms also introduced more complexity and multicollinearity concerns for those models. Race effects were weak or inconsistent across members. RMSE comparisons also show that nonlinear patterns in age and priors_count are meaningful predictors of recidivism risk. 
+
+As a group, we learned that added complexity doesn’t always improve prediction and should be supported by statistical significance and diagnostics. Next steps should include exploring alternative nonlinear methods.
+
+
+
+

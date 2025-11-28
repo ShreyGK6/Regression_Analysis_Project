@@ -1,0 +1,59 @@
+---
+title: "Final Report Week 7"
+author: "Usman Fawaz"
+date: "2025-11-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+```{r}
+
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(car)
+
+data <- read.csv("~/cox-violent-parsed.csv")
+```
+
+##Model Summary:
+```{r}
+model2 <- lm(is_recid ~ race + age + priors_count + decile_score + juv_fel_count, 
+             data = data)
+summary(model2)
+```
+##Comparing Models, R^2 and RMSE
+
+Across our four models, we noticed that the predictors age and priors_count were included every single time, which shows that they were the most consistent and important variables across all of our different random training splits. Their estimated coefficients were also very stable across members: age always had a strong negative effect, and priors_count consistently had a strong positive effect, even though each of us used slightly different sets of predictors and sometimes even different outcomes. The other variables were much less stable. Wasim included race and sex, Shrey added race, juv_fel_count, and decile_score, and Usman used juv_fel_count along with age and priors_count. Ali’s Model 2 also used race, age, and priors_count, which—similar to Wasim’s model—reinforced again that age and priors_count remain the most consistent contributors even when the surrounding predictors vary. These additional predictors changed across all of us, and our coefficients tended to be smaller and less consistent, suggesting that they are weaker predictors and more sensitive to differences in random splits or model specification. Overall, based on all four models, we found that age and priors_count are clearly the most reliable and stable predictors, while variables such as race, sex, juvenile offense counts, and decile_score vary much more and show less stability across models.
+
+
+```{r}
+hist(residuals(model2), main = "Histogram of Residuals", xlab = "Residuals")
+plot(model2, which = 1)
+plot(model2, which = 2)
+```
+
+Across our representative residual plots, we observed similar issues that appeared in every member’s model. The Residuals vs Fitted plot shows a clear curved pattern rather than a random scatter, which suggests non-linearity and that a straight-line model does not fully capture the relationship between the predictors and the outcome. We also see uneven spread in the residuals, indicating heteroskedasticity. The Q-Q plot shows strong deviations from the diagonal line on both tails, meaning the residuals are not normally distributed, which violates another key regression assumption. The histogram of residuals further supports this, showing a somewhat multimodal shape instead of a single, centered bell curve. Taken together, these patterns suggest that our linear models struggle with both the binary and continuous COMPAS outcomes, and they consistently fail to meet the standard regression assumptions across all group members’ samples.
+
+```{r}
+library(knitr)
+
+results_table <- data.frame(
+  Member = c("Ali", "Wasim", "Usman", "Shrey"),
+  Train_R2 = c(0.12, 0.1324, 0.3777, 0.1254),
+  RMSE     = c(0.539, 0.5411, 2.345, 0.5380206),
+  Comments = c("Consistent with other binary models",
+               "Consistent with Wasim’s results",
+               "Higher RMSE because outcome is 1–10 scale",
+               "Similar performance to Wasim’s model")
+)
+
+kable(results_table, caption = "Model Assessment Comparison Across Members")
+
+```
+Across all four models, we learned that age and priors_count were the most important and consistent predictors. These variables stayed significant in every member’s model and kept the same coefficient direction, showing that they provide stable information about either recidivism or the COMPAS decile score. In contrast, variables such as race, sex, juvenile counts, and decile_score showed more variation across models and often had weaker or inconsistent effects. This suggests some degree of redundancy, where certain predictors do not add much beyond what age and priors_count already explain. Our residual checks also showed clear violations of normality and linearity—patterns in the residual plots and heavy tails in the Q-Q plots—indicating that linear regression assumptions were not fully met. These patterns support the idea that our current models are underfitting and not capturing important structure in the data.
+
+Next week, we plan to refine our models by testing interaction terms (such as age × priors_count), adding nonlinear components (for example, quadratic terms), and exploring transformations to help with skewed residuals. For the binary outcome models, we may also move beyond linear regression and try logistic regression, and for continuous outcomes, consider tree-based models or random forests that can better capture nonlinear patterns. These steps should help improve both predictive accuracy and the reliability of our assumptions.
+

@@ -1,0 +1,76 @@
+---
+title: "Group Report 4"
+author: "Group6"
+date: "2025-12-08"
+output: html_document
+---
+
+Step 4:
+
+```{r}
+library(tidyverse)
+data <- read_csv("cox-violent-parsed.csv")
+set.seed(862331611)
+rows <- nrow(data)
+trainIndex <- sample(1:rows, size = 0.7*rows)
+trainData <- data[trainIndex, ]
+testData <- data[-trainIndex, ]
+trainData <- trainData %>%
+  rename(priors_count = priors_count...15)
+testData <- testData %>%
+  rename(priors_count = priors_count...15)
+trainData <- trainData %>%
+  rename(decile_score = decile_score...12)
+testData <- testData %>%
+  rename(decile_score = decile_score...12)
+
+variablesOfInterest <- c("is_recid", "race", "age", "priors_count", "juv_fel_count", "decile_score")
+df <- trainData[, variablesOfInterest]
+
+representative_model <- lm(is_recid ~ race + age + I(age^2) +
+            juv_fel_count + priors_count + I(priors_count^2) +
+            decile_score + age*juv_fel_count + race*priors_count, data = df)
+summary(representative_model)
+```
+We observe that even though we have interactions and quadratic terms, this representative model does not explain much of its variance. This makes sense because our response variable is a categorical variable presenting only two options. We also observe that our model is significant because our overall p-value is less than 2.2e-16. 
+
+```{r}
+plot(representative_model, which = 1)
+```
+```{r}
+plot(representative_model, which = 2)
+```
+
+These 2 residual plot results are similar across our group's 4 models. This tells us that the data is non-normal and we can't really use the residuals vs fitted values because we are using a categorical variable as our dependent variable. 
+
+Step 5:
+
+```{r}
+library(gt)
+
+df <- data.frame(
+  Member = c("Ali", "Shrey", "Wasim", "Usman"),
+  Adj_R2_Train = c(0.155, 0.1586, 0.1136, 0.4257),
+  R2_Test = c(0.163153, 0.1607688, 0.144, 0.4004079),
+  RMSE = c(0.529, 0.5314059, 0.5431, 2.263153),
+  Transformations = c("None", "None", "None", "None"),
+  Interactions = c(
+    "None",
+    "age * juv_fel_count, race * prior_counts, age^2, prior_counts^2",
+    "juv_fel_count * race",
+    "None"
+  ),
+  Comments = c("Underfit", "Underfit", "Strong Underfit", "Best Fit")
+)
+
+df %>%
+  gt() %>%
+  tab_options(table.width = pct(100))
+```
+
+Across the four random splits, all members found race and prior_counts to be very strong predictors. We observe that three team members did not use quadratic terms and only one interaction total. Still, the R^2 values and RMSE are very close together. This tells us that adding those quadratics and interactions in Shrey's model did not improve it that much, as compared to the other models. We observe that both Ali's and Shrey's models are the most stable due to the smallest differences in testing R^2 and training R^2. Ali's model is also the most simple and the most accurate because it has the lowest RMSE value and the model is very simple. We see that Wasim's model severly underfits while both Ali's and Shrey's models underfit. This is because all three models cover a small amount of variance. Usman's model is the one with the best fit because it covers a significantly larger amount of variance, even though we observe a high RMSE value. Assumption violations do exist but do not significantly affect interpretation because all four models show weak predictive capabilities. 
+
+
+Step 6:
+
+Through this project, our group learned the importance of balancing model complexity with parsimony by using partial F-tests to justify retaining only statistically supported transformations and interactions. We saw that transformations, such as quadratic terms, must be statistically validated. If we had more time and data, we would use alternative models such as logistic regression to understand the data. Using multiple random train–test splits across the group allowed us to identify which predictors and interactions were truly stable. Collaborative analysis improved our confidence in which effects generalized consistently across samples.

@@ -1,0 +1,132 @@
+---
+title: "Week 9"
+author: "Shrey Kothari"
+date: "2025-12-03"
+output: html_document
+---
+
+Step 1:
+
+Model From Last Week:
+
+```{r}
+library(tidyverse)
+data <- read_csv("cox-violent-parsed.csv")
+set.seed(862331611)
+rows <- nrow(data)
+trainIndex <- sample(1:rows, size = 0.7*rows)
+trainData <- data[trainIndex, ]
+testData <- data[-trainIndex, ]
+trainData <- trainData %>%
+  rename(priors_count = priors_count...15)
+testData <- testData %>%
+  rename(priors_count = priors_count...15)
+trainData <- trainData %>%
+  rename(decile_score = decile_score...12)
+testData <- testData %>%
+  rename(decile_score = decile_score...12)
+
+variablesOfInterest <- c("is_recid", "race", "age", "priors_count", "juv_fel_count", "decile_score")
+df <- trainData[, variablesOfInterest]
+```
+
+```{r}
+model <- lm(is_recid ~ race + age + I(age^2) +
+            juv_fel_count + I(juv_fel_count^2) + priors_count + I(priors_count^2) +
+            decile_score + age*juv_fel_count + race*priors_count, data = df)
+summary(model)
+```
+Partial F-Tests:
+```{r}
+reduced_age <- lm(is_recid ~ race + age +
+                   juv_fel_count + I(juv_fel_count^2) +
+                   priors_count + I(priors_count^2) +
+                   decile_score +
+                   age*juv_fel_count + race*priors_count,
+                   data = df)
+anova(reduced_age, model)
+```
+```{r}
+reduced_juv <- lm(is_recid ~ race + age + I(age^2) +
+                   juv_fel_count +
+                   priors_count + I(priors_count^2) +
+                   decile_score +
+                   age*juv_fel_count + race*priors_count,
+                   data = df)
+anova(reduced_juv, model)
+```
+```{r}
+reduced_priors <- lm(is_recid ~ race + age + I(age^2) +
+                      juv_fel_count + I(juv_fel_count^2) +
+                      priors_count +
+                      decile_score +
+                      age*juv_fel_count + race*priors_count,
+                      data = df)
+anova(reduced_priors, model)
+```
+```{r}
+reduced_age_and_juv <- lm(is_recid ~ race + age + I(age^2) +
+                     juv_fel_count + I(juv_fel_count^2) +
+                     priors_count + I(priors_count^2) +
+                     decile_score +
+                     race*priors_count,
+                     data = df)
+anova(reduced_age_and_juv, model)
+```
+```{r}
+reduced_race_and_priors <- lm(is_recid ~ race + age + I(age^2) +
+                         juv_fel_count + I(juv_fel_count^2) +
+                         priors_count + I(priors_count^2) +
+                         decile_score +
+                         age*juv_fel_count,
+                         data = df)
+anova(reduced_race_and_priors, model)
+```
+The partial F-test for juv_fel_count showed that removing the juv_fel_count^2 term did not significantly reduce model fit. Therefore, curvature in juv_fel_count is not strongly supported, and I removed the quadratic term. All other interactions and quadratic terms will be kept because removing it does hurt fit.
+
+```{r}
+model_final <- lm(is_recid ~ race + age + I(age^2) +
+            juv_fel_count + priors_count + I(priors_count^2) +
+            decile_score + age*juv_fel_count + race*priors_count, data = df)
+summary(model_final)
+```
+Step 2:
+
+```{r}
+plot(model_final, which = 1)
+```
+```{r}
+plot(model_final, which = 2)
+```
+```{r}
+plot(model_final, which = 4)
+```
+The above plot shows 3 highly influential outliers: 3341, 4928, and 6522. These cases appear influential because they have unusually high leverage (likely due to rare race categories), or unusually large prior counts / juvenile felony counts, which are genuine extreme values in the dataset. Therefore, it is not appropriate to remove them, and I retain all observations in the final model.
+
+Regarding model adequacy, the final model does capture nonlinear effects and interactions with low performance. However, we observe that the response variable is binary, normality not fully reached, and our variance is not constant. 
+
+Some possible remedies would be to collect more data, consider using alternate nonlinear models, and use logistic regression.
+
+Step 3:
+
+```{r}
+pred_test <- predict(model_final, newdata = testData) 
+RMSE <- sqrt(mean((testData$is_recid - pred_test)^2))
+RMSE
+```
+```{r}
+summary(model_final)$adj.r.squared
+```
+```{r}
+SSE_test <- sum((testData$is_recid - pred_test)^2)
+SST_test <- sum((testData$is_recid - mean(trainData$is_recid))^2)
+R2_test <- 1 - SSE_test / SST_test
+R2_test
+```
+RMSE = 0.5314059, training R^2 = 0.1585863, and testing R^2 = 0.1607688. This indicates low predictive performance with minimal overfitting because we have nearly identical training and testing R^2 values.
+
+Step 4:
+
+One of the main takeaways from the model is that we are able to see non linearity in many of our variables, such as prior_counts. This model would work much better if our response variable was not binary. 
+
+I believe that adding interactions and dropping predictors were the most influential. We add interactions to explain more variance in the model and drop predictors that do not contribute significantly. I also balanced fit and interpretability by using partial F-tests to provide meaningful improvements in model fit.
